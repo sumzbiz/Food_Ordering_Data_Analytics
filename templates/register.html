@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Zomato-like App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white text-center">
+                <h4><i class="fas fa-user-plus me-2"></i>Register</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="registerForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                            <input type="text" class="form-control" id="username" name="username" 
+                                   placeholder="Enter username (3-50 characters)" required 
+                                   pattern="[a-zA-Z0-9_]+" minlength="3" maxlength="50">
+                        </div>
+                        <div class="form-text">Username can only contain letters, numbers, and underscores</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   placeholder="Enter password (min 6 characters)" required minlength="6">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
+                                   placeholder="Confirm your password" required>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-user-plus me-2"></i>Register
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <div class="text-center">
+                    <p class="mb-0">Already have an account?</p>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-danger">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#registerForm').on('submit', function(e) {
+        const username = $('#username').val().trim();
+        const password = $('#password').val();
+        const confirmPassword = $('#confirm_password').val();
+        
+        // Username validation
+        if (!username || username.length < 3) {
+            alert('Username must be at least 3 characters long');
+            e.preventDefault();
+            return false;
+        }
+        
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            alert('Username can only contain letters, numbers, and underscores');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Password validation
+        if (!password || password.length < 6) {
+            alert('Password must be at least 6 characters long');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Confirm password
+        if (password !== confirmPassword) {
+            alert('Passwords do not match');
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // Real-time password confirmation check
+    $('#confirm_password').on('input', function() {
+        const password = $('#password').val();
+        const confirmPassword = $(this).val();
+        
+        if (confirmPassword && password !== confirmPassword) {
+            $(this).addClass('is-invalid');
+        } else {
+            $(this).removeClass('is-invalid');
+        }
+    });
+});
+</script>
+{% endblock %}

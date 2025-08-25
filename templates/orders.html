@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders - Zomato-like App{% endblock %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+        <h4><i class="fas fa-list me-2"></i>My Orders</h4>
+        <a href="{{ url_for('orders.home') }}" class="btn btn-light btn-sm">
+            <i class="fas fa-plus me-1"></i>New Order
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Filters -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label for="dateFilter" class="form-label">Filter by Date:</label>
+                <select class="form-select" id="dateFilter">
+                    <option value="">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="dishFilter" class="form-label">Filter by Dish:</label>
+                <input type="text" class="form-control" id="dishFilter" placeholder="Search dishes...">
+            </div>
+            <div class="col-md-4">
+                <label for="sortOrder" class="form-label">Sort by:</label>
+                <select class="form-select" id="sortOrder">
+                    <option value="latest">Latest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="dish">Dish Name</option>
+                    <option value="quantity">Quantity</option>
+                </select>
+            </div>
+        </div>
+
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="ordersTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Dish</th>
+                        <th>Category</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                        <th>Delivery Address</th>
+                        <th>Order Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr data-order-id="{{ order.order_id }}" 
+                        data-dish="{{ order.item_name.lower() }}"
+                        data-date="{{ order.order_timestamp.strftime('%Y-%m-%d') if order.order_timestamp else '' }}">
+                        <td>#{{ order.order_id }}</td>
+                        <td>
+                            <strong>{{ order.item_name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ order.category }}</span>
+                        </td>
+                        <td>{{ order.quantity }}</td>
+                        <td>₹{{ "%.2f"|format(order.price) }}</td>
+                        <td>
+                            <strong class="text-danger">₹{{ "%.2f"|format(order.price * order.quantity) }}</strong>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ order.delivery_address[:50] }}{% if order.delivery_address|length > 50 %}...{% endif %}</small>
+                        </td>
+                        <td>
+                            <small>{{ order.order_timestamp.strftime('%Y-%m-%d %H:%M') if order.order_timestamp else 'N/A' }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('orders.edit_order', order_id=order.order_id) }}" 
+                                   class="btn btn-outline-primary" title="Edit Order">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" 
+                                        onclick="deleteOrder({{ order.order_id }})" title="Delete Order">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Order Summary -->
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">Order Summary</h6>
+                        <p class="mb-1"><strong>Total Orders:</strong> {{ orders|length }}</p>
+                        <p class="mb-1"><strong>Total Items:</strong> {{ orders|sum(attribute='quantity') }}</p>
+                        <p class="mb-0"><strong>Total Spent:</strong> 
+                            <span class="text-danger">₹{{ "%.2f"|format(orders|sum(attribute='price') * orders|sum(attribute='quantity')) }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-shopping-bag text-muted fa-3x mb-3"></i>
+            <h5 class="text-muted">No orders found</h5>
+            <p class="text-muted">You haven't placed any orders yet.</p>
+            <a href="{{ url_for('orders.home') }}" class="btn btn-danger">
+                <i class="fas fa-plus me-2"></i>Place Your First Order
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this order? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" id="deleteForm" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Order
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteOrder(orderId) {
+    // Set the form action
+    document.getElementById('deleteForm').action = `/orders/delete_order/${orderId}`;
+    
+    // Show confirmation modal
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Filtering and sorting functionality
+$(document).ready(function() {
+    const table = $('#ordersTable');
+    const tbody = table.find('tbody');
+    const rows = tbody.find('tr');
+    
+    // Date filter
+    $('#dateFilter').on('change', function() {
+        const filterValue = $(this).val();
+        filterRows();
+    });
+    
+    // Dish filter
+    $('#dishFilter').on('input', function() {
+        filterRows();
+    });
+    
+    // Sort order
+    $('#sortOrder').on('change', function() {
+        sortRows();
+    });
+    
+    function filterRows() {
+        const dateFilter = $('#dateFilter').val();
+        const dishFilter = $('#dishFilter').val().toLowerCase();
+        const today = new Date().toISOString().split('T')[0];
+        
+        rows.each(function() {
+            const row = $(this);
+            const dish = row.data('dish');
+            const date = row.data('date');
+            let showRow = true;
+            
+            // Date filtering
+            if (dateFilter) {
+                if (dateFilter === 'today' && date !== today) {
+                    showRow = false;
+                } else if (dateFilter === 'week') {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+                    if (date < weekAgoStr) {
+                        showRow = false;
+                    }
+                } else if (dateFilter === 'month') {
+                    const monthAgo = new Date();
+                    monthAgo.setMonth(monthAgo.getMonth() - 1);
+                    const monthAgoStr = monthAgo.toISOString().split('T')[0];
+                    if (date < monthAgoStr) {
+                        showRow = false;
+                    }
+                }
+            }
+            
+            // Dish filtering
+            if (dishFilter && !dish.includes(dishFilter)) {
+                showRow = false;
+            }
+            
+            row.toggle(showRow);
+        });
+    }
+    
+    function sortRows() {
+        const sortBy = $('#sortOrder').val();
+        const visibleRows = rows.filter(':visible').get();
+        
+        visibleRows.sort(function(a, b) {
+            const aRow = $(a);
+            const bRow = $(b);
+            
+            switch(sortBy) {
+                case 'latest':
+                    return new Date(bRow.data('date')) - new Date(aRow.data('date'));
+                case 'oldest':
+                    return new Date(aRow.data('date')) - new Date(bRow.data('date'));
+                case 'dish':
+                    return aRow.data('dish').localeCompare(bRow.data('dish'));
+                case 'quantity':
+                    const aQty = parseInt(aRow.find('td:eq(3)').text());
+                    const bQty = parseInt(bRow.find('td:eq(3)').text());
+                    return bQty - aQty;
+                default:
+                    return 0;
+            }
+        });
+        
+        tbody.empty().append(visibleRows);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard - Zomato-like App{% endblock %}
+
+{% block extra_css %}
+<style>
+.chart-container {
+    position: relative;
+    height: 400px;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card bg-primary text-white shadow">
+            <div class="card-body text-center">
+                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                <h3>{{ total_orders }}</h3>
+                <p class="mb-0">Total Orders</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-success text-white shadow">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                <h3>{{ popular_dishes|length if popular_dishes else 0 }}</h3>
+                <p class="mb-0">Menu Items</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-warning text-white shadow">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar fa-2x mb-2"></i>
+                <h3>{{ orders_per_day|length if orders_per_day else 0 }}</h3>
+                <p class="mb-0">Active Days</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-info text-white shadow">
+            <div class="card-body text-center">
+                <i class="fas fa-tags fa-2x mb-2"></i>
+                <h3>{{ orders_by_category|length if orders_by_category else 0 }}</h3>
+                <p class="mb-0">Categories</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Popular Dishes Chart -->
+    <div class="col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="fas fa-chart-bar me-2"></i>Most Popular Dishes</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="popularDishesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Orders by Category Chart -->
+    <div class="col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="fas fa-chart-pie me-2"></i>Orders by Category</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Orders Per Day Chart -->
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="fas fa-chart-line me-2"></i>Orders Per Day (Last 7 Days)</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="ordersPerDayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Popular Dishes Table -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="fas fa-table me-2"></i>Popular Dishes Details</h5>
+            </div>
+            <div class="card-body">
+                {% if popular_dishes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Rank</th>
+                                <th>Dish Name</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Total Ordered</th>
+                                <th>Order Count</th>
+                                <th>Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dish in popular_dishes %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{{ 'warning' if loop.index == 1 else 'secondary' if loop.index == 2 else 'danger' if loop.index == 3 else 'info' }}">
+                                        #{{ loop.index }}
+                                    </span>
+                                </td>
+                                <td><strong>{{ dish.item_name }}</strong></td>
+                                <td><span class="badge bg-secondary">{{ dish.category }}</span></td>
+                                <td>₹{{ "%.2f"|format(dish.price) }}</td>
+                                <td>{{ dish.total_ordered }}</td>
+                                <td>{{ dish.order_count }}</td>
+                                <td><strong class="text-success">₹{{ "%.2f"|format(dish.price * dish.total_ordered) }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-chart-bar text-muted fa-3x mb-3"></i>
+                    <p class="text-muted">No data available for popular dishes.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Chart colors
+const colors = [
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+    '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+];
+
+// Popular Dishes Chart
+const popularDishesCtx = document.getElementById('popularDishesChart').getContext('2d');
+const popularDishesChart = new Chart(popularDishesCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ popular_dishes|map(attribute='item_name')|list|tojson if popular_dishes else [] }},
+        datasets: [{
+            label: 'Total Ordered',
+            data: {{ popular_dishes|map(attribute='total_ordered')|list|tojson if popular_dishes else [] }},
+            backgroundColor: colors.slice(0, {{ popular_dishes|length if popular_dishes else 0 }}),
+            borderColor: colors.slice(0, {{ popular_dishes|length if popular_dishes else 0 }}),
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Category Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+const categoryChart = new Chart(categoryCtx, {
+    type: 'pie',
+    data: {
+        labels: {{ orders_by_category|map(attribute='category')|list|tojson if orders_by_category else [] }},
+        datasets: [{
+            data: {{ orders_by_category|map(attribute='order_count')|list|tojson if orders_by_category else [] }},
+            backgroundColor: colors.slice(0, {{ orders_by_category|length if orders_by_category else 0 }}),
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Orders Per Day Chart
+const ordersPerDayCtx = document.getElementById('ordersPerDayChart').getContext('2d');
+const ordersPerDayChart = new Chart(ordersPerDayCtx, {
+    type: 'line',
+    data: {
+        labels: {{ orders_per_day|map(attribute='order_date')|list|tojson if orders_per_day else [] }},
+        datasets: [{
+            label: 'Orders',
+            data: {{ orders_per_day|map(attribute='order_count')|list|tojson if orders_per_day else [] }},
+            borderColor: '#FF6384',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Auto-refresh data every 30 seconds
+setInterval(function() {
+    fetch('{{ url_for("analytics.api_analytics_summary") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.total_orders !== undefined) {
+                // Update charts with new data
+                updateCharts(data);
+            }
+        })
+        .catch(error => console.error('Error refreshing analytics:', error));
+}, 30000);
+
+function updateCharts(data) {
+    // Update popular dishes chart
+    if (data.popular_dishes) {
+        popularDishesChart.data.labels = data.popular_dishes.map(dish => dish.item_name);
+        popularDishesChart.data.datasets[0].data = data.popular_dishes.map(dish => dish.total_ordered);
+        popularDishesChart.update();
+    }
+    
+    // Update category chart
+    if (data.orders_by_category) {
+        categoryChart.data.labels = data.orders_by_category.map(cat => cat.category);
+        categoryChart.data.datasets[0].data = data.orders_by_category.map(cat => cat.order_count);
+        categoryChart.update();
+    }
+    
+    // Update orders per day chart
+    if (data.orders_per_day) {
+        ordersPerDayChart.data.labels = data.orders_per_day.map(day => day.order_date);
+        ordersPerDayChart.data.datasets[0].data = data.orders_per_day.map(day => day.order_count);
+        ordersPerDayChart.update();
+    }
+}
+</script>
+{% endblock %}

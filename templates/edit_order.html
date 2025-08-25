@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Order - Zomato-like App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h4><i class="fas fa-edit me-2"></i>Edit Order #{{ order.order_id }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="editOrderForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Dish Name</label>
+                                <input type="text" class="form-control" value="{{ order.item_name }}" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Category</label>
+                                <input type="text" class="form-control" value="{{ order.category }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" 
+                                       value="{{ order.quantity }}" min="1" max="100" required>
+                                <div class="form-text">Enter quantity between 1 and 100</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Price per Item</label>
+                                <input type="text" class="form-control" value="₹{{ "%.2f"|format(order.price) }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="delivery_address" class="form-label">Delivery Address</label>
+                        <textarea class="form-control" id="delivery_address" name="delivery_address" 
+                                  rows="3" required minlength="10">{{ order.delivery_address }}</textarea>
+                        <div class="form-text">Enter complete delivery address (minimum 10 characters)</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Order Date</label>
+                                <input type="text" class="form-control" 
+                                       value="{{ order.order_timestamp.strftime('%Y-%m-%d %H:%M:%S') if order.order_timestamp else 'N/A' }}" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Total Amount</label>
+                                <input type="text" class="form-control" id="totalAmount" 
+                                       value="₹{{ "%.2f"|format(order.price * order.quantity) }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('orders.view_orders') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Orders
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-save me-2"></i>Update Order
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Calculate total amount when quantity changes
+    $('#quantity').on('input', function() {
+        const quantity = parseInt($(this).val()) || 0;
+        const price = parseFloat('{{ order.price }}');
+        const total = quantity * price;
+        $('#totalAmount').val('₹' + total.toFixed(2));
+    });
+    
+    // Form validation
+    $('#editOrderForm').on('submit', function(e) {
+        const quantity = parseInt($('#quantity').val());
+        const address = $('#delivery_address').val().trim();
+        
+        if (!quantity || quantity < 1 || quantity > 100) {
+            alert('Please enter a valid quantity between 1 and 100');
+            e.preventDefault();
+            return false;
+        }
+        
+        if (!address || address.length < 10) {
+            alert('Please enter a complete delivery address (minimum 10 characters)');
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

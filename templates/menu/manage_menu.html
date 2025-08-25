@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Menu - Zomato-like App{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-utensils me-2"></i>Manage Menu</h4>
+                    <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="fas fa-plus me-2"></i>Add New Item
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Search and Filter Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <form method="GET" class="d-flex">
+                                <input type="text" class="form-control me-2" name="search" 
+                                       placeholder="Search items..." value="{{ search }}">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <form method="GET" class="d-flex">
+                                {% if search %}
+                                <input type="hidden" name="search" value="{{ search }}">
+                                {% endif %}
+                                <select class="form-select me-2" name="category" onchange="this.form.submit()">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category }}" {% if category_filter == category %}selected{% endif %}>
+                                        {{ category }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if category_filter or search %}
+                                <a href="{{ url_for('menu.manage_menu') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Menu Items Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Image</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if items %}
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>
+                                            {% if item.image_url %}
+                                            <img src="{{ item.image_url }}" alt="{{ item.item_name }}" 
+                                                 class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;">
+                                            {% else %}
+                                            <div class="bg-light d-flex align-items-center justify-content-center" 
+                                                 style="width: 60px; height: 60px;">
+                                                <i class="fas fa-image text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ item.item_name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ item.category }}</span>
+                                        </td>
+                                        <td>
+                                            <strong class="text-success">₹{{ "%.2f"|format(item.price) }}</strong>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-1" 
+                                                    onclick="editItem({{ item.item_id }}, '{{ item.item_name }}', '{{ item.category }}', {{ item.price }}, '{{ item.image_url or '' }}')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" 
+                                                    onclick="deleteItem({{ item.item_id }}, '{{ item.item_name }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            <i class="fas fa-exclamation-triangle text-warning fa-2x mb-3"></i>
+                                            <p class="text-muted">No menu items found.</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Add New Menu Item
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addItemForm">
+                    <div class="mb-3">
+                        <label for="itemName" class="form-label">Item Name *</label>
+                        <input type="text" class="form-control" id="itemName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemCategory" class="form-label">Category *</label>
+                        <select class="form-select" id="itemCategory" required>
+                            <option value="">Select Category</option>
+                            <option value="Main Course">Main Course</option>
+                            <option value="Snacks">Snacks</option>
+                            <option value="Dessert">Dessert</option>
+                            <option value="Beverage">Beverage</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemPrice" class="form-label">Price (₹) *</label>
+                        <input type="number" class="form-control" id="itemPrice" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemImageUrl" class="form-label">Image URL</label>
+                        <input type="url" class="form-control" id="itemImageUrl" placeholder="https://example.com/image.jpg">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="addItem()">
+                    <i class="fas fa-plus me-2"></i>Add Item
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Edit Menu Item
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editItemForm">
+                    <input type="hidden" id="editItemId">
+                    <div class="mb-3">
+                        <label for="editItemName" class="form-label">Item Name *</label>
+                        <input type="text" class="form-control" id="editItemName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editItemCategory" class="form-label">Category *</label>
+                        <select class="form-select" id="editItemCategory" required>
+                            <option value="">Select Category</option>
+                            <option value="Main Course">Main Course</option>
+                            <option value="Snacks">Snacks</option>
+                            <option value="Dessert">Dessert</option>
+                            <option value="Beverage">Beverage</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editItemPrice" class="form-label">Price (₹) *</label>
+                        <input type="number" class="form-control" id="editItemPrice" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editItemImageUrl" class="form-label">Image URL</label>
+                        <input type="url" class="form-control" id="editItemImageUrl" placeholder="https://example.com/image.jpg">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="updateItem()">
+                    <i class="fas fa-save me-2"></i>Update Item
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete "<strong id="deleteItemName"></strong>"?</p>
+                <p class="text-muted">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash me-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentItemId = null;
+
+function addItem() {
+    const itemName = document.getElementById('itemName').value.trim();
+    const category = document.getElementById('itemCategory').value;
+    const price = parseFloat(document.getElementById('itemPrice').value);
+    const imageUrl = document.getElementById('itemImageUrl').value.trim();
+    
+    if (!itemName || !category || !price || price <= 0) {
+        alert('Please fill in all required fields with valid values.');
+        return;
+    }
+    
+    const data = {
+        item_name: itemName,
+        category: category,
+        price: price,
+        image_url: imageUrl || null
+    };
+    
+    fetch('{{ url_for("menu.add_item") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            // Close modal and reload page
+            bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function editItem(itemId, itemName, category, price, imageUrl) {
+    currentItemId = itemId;
+    document.getElementById('editItemId').value = itemId;
+    document.getElementById('editItemName').value = itemName;
+    document.getElementById('editItemCategory').value = category;
+    document.getElementById('editItemPrice').value = price;
+    document.getElementById('editItemImageUrl').value = imageUrl || '';
+    
+    new bootstrap.Modal(document.getElementById('editItemModal')).show();
+}
+
+function updateItem() {
+    const itemName = document.getElementById('editItemName').value.trim();
+    const category = document.getElementById('editItemCategory').value;
+    const price = parseFloat(document.getElementById('editItemPrice').value);
+    const imageUrl = document.getElementById('editItemImageUrl').value.trim();
+    
+    if (!itemName || !category || !price || price <= 0) {
+        alert('Please fill in all required fields with valid values.');
+        return;
+    }
+    
+    const data = {
+        item_name: itemName,
+        category: category,
+        price: price,
+        image_url: imageUrl || null
+    };
+    
+    fetch(`{{ url_for("menu.edit_item", item_id=0) }}`.replace('0', currentItemId), {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            // Close modal and reload page
+            bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function deleteItem(itemId, itemName) {
+    currentItemId = itemId;
+    document.getElementById('deleteItemName').textContent = itemName;
+    new bootstrap.Modal(document.getElementById('deleteItemModal')).show();
+}
+
+function confirmDelete() {
+    fetch(`{{ url_for("menu.delete_item", item_id=0) }}`.replace('0', currentItemId), {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            // Close modal and reload page
+            bootstrap.Modal.getInstance(document.getElementById('deleteItemModal')).hide();
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+// Clear form when add modal is closed
+document.getElementById('addItemModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('addItemForm').reset();
+});
+</script>
+{% endblock %}

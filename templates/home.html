@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Zomato-like App{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h4><i class="fas fa-utensils me-2"></i>Our Menu</h4>
+            </div>
+            <div class="card-body">
+                <!-- Category Filter Buttons -->
+                {% if categories %}
+                <div class="mb-4">
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('orders.home') }}" 
+                           class="btn {% if not selected_category %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                            All Items
+                        </a>
+                        {% for category in categories %}
+                        <a href="{{ url_for('orders.home', category=category) }}" 
+                           class="btn {% if selected_category == category %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                            {{ category }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if items_by_category %}
+                    {% for category, items in items_by_category.items() %}
+                    <div class="mb-4">
+                        <h5 class="text-danger border-bottom pb-2">
+                            <i class="fas fa-tag me-2"></i>{{ category }}
+                        </h5>
+                        <div class="row">
+                            {% for item in items %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 border-0 shadow-sm" data-item-id="{{ item.item_id }}">
+                                    {% if item.image_url %}
+                                    <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.item_name }}" 
+                                         style="height: 200px; object-fit: cover;">
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-0">{{ item.item_name }}</h6>
+                                            <span class="badge bg-success">₹{{ "%.2f"|format(item.price) }}</span>
+                                        </div>
+                                        <p class="card-text text-muted small">{{ item.category }}</p>
+                                        <div class="d-flex align-items-center">
+                                            <button class="btn btn-sm btn-outline-danger me-2 quantity-btn" 
+                                                    data-action="decrease" data-item-id="{{ item.item_id }}">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <input type="number" class="form-control form-control-sm text-center quantity-input" 
+                                                   id="quantity_{{ item.item_id }}" value="0" min="0" max="100" 
+                                                   style="width: 60px;" data-item-id="{{ item.item_id }}">
+                                            <button class="btn btn-sm btn-outline-danger ms-2 quantity-btn" 
+                                                    data-action="increase" data-item-id="{{ item.item_id }}">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i>
+                        <p class="text-muted">No menu items available at the moment.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow sticky-top" style="top: 20px;">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="fas fa-shopping-cart me-2"></i>Your Cart</h5>
+            </div>
+            <div class="card-body">
+                <div id="cartItems">
+                    <p class="text-muted text-center">Your cart is empty</p>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-3">
+                    <label for="deliveryAddress" class="form-label">
+                        <i class="fas fa-map-marker-alt me-1"></i>Delivery Address
+                    </label>
+                    <textarea class="form-control" id="deliveryAddress" rows="3" 
+                              placeholder="Enter your complete delivery address..." required></textarea>
+                </div>
+                
+                <div class="d-grid">
+                    <button class="btn btn-danger" onclick="placeOrder()" id="placeOrderBtn" disabled>
+                        <i class="fas fa-paper-plane me-2"></i>Place Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Success Modal -->
+<div class="modal fade" id="orderSuccessModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>Order Placed Successfully!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Your order has been placed successfully! You will receive a confirmation shortly.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{{ url_for('orders.view_orders') }}" class="btn btn-success">
+                    <i class="fas fa-list me-2"></i>View My Orders
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Error Modal -->
+<div class="modal fade" id="orderErrorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Order Error
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage">An error occurred while placing your order.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let cart = {};
+
+function updateCart() {
+    cart = {};
+    let hasItems = false;
+    
+    // Collect all quantities
+    document.querySelectorAll('input[id^="quantity_"]').forEach(input => {
+        const itemId = input.id.replace('quantity_', '');
+        const quantity = parseInt(input.value) || 0;
+        
+        if (quantity > 0) {
+            cart[itemId] = quantity;
+            hasItems = true;
+        }
+    });
+    
+    // Update cart display
+    updateCartDisplay();
+    
+    // Enable/disable place order button
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    const address = document.getElementById('deliveryAddress').value.trim();
+    placeOrderBtn.disabled = !hasItems || !address;
+}
+
+function updateCartDisplay() {
+    const cartItems = document.getElementById('cartItems');
+    
+    if (Object.keys(cart).length === 0) {
+        cartItems.innerHTML = '<p class="text-muted text-center">Your cart is empty</p>';
+        return;
+    }
+    
+    let cartHTML = '<div class="mb-3">';
+    let total = 0;
+    
+    // Get item details and calculate total
+    Object.keys(cart).forEach(itemId => {
+        const quantity = cart[itemId];
+        const itemName = getItemName(itemId);
+        const itemPrice = getItemPrice(itemId);
+        const itemTotal = quantity * itemPrice;
+        total += itemTotal;
+        
+        cartHTML += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <strong>${itemName}</strong>
+                    <br><small class="text-muted">₹${itemPrice.toFixed(2)} × ${quantity}</small>
+                </div>
+                <span class="fw-bold">₹${itemTotal.toFixed(2)}</span>
+            </div>
+        `;
+    });
+    
+    cartHTML += `
+        <hr>
+        <div class="d-flex justify-content-between align-items-center">
+            <strong>Total:</strong>
+            <strong class="text-danger">₹${total.toFixed(2)}</strong>
+        </div>
+    </div>`;
+    
+    cartItems.innerHTML = cartHTML;
+}
+
+function getItemName(itemId) {
+    // Get item name from the DOM
+    const itemElement = document.querySelector(`[data-item-id="${itemId}"]`);
+    if (itemElement) {
+        return itemElement.querySelector('.card-title').textContent.trim();
+    }
+    return 'Unknown Item';
+}
+
+function getItemPrice(itemId) {
+    // Get item price from the DOM
+    const itemElement = document.querySelector(`[data-item-id="${itemId}"]`);
+    if (itemElement) {
+        const priceText = itemElement.querySelector('.badge').textContent;
+        return parseFloat(priceText.replace('₹', '')) || 0;
+    }
+    return 0;
+}
+
+function increaseQuantity(itemId) {
+    const input = document.getElementById(`quantity_${itemId}`);
+    input.value = parseInt(input.value || 0) + 1;
+    updateCart();
+}
+
+function decreaseQuantity(itemId) {
+    const input = document.getElementById(`quantity_${itemId}`);
+    const currentValue = parseInt(input.value || 0);
+    if (currentValue > 0) {
+        input.value = currentValue - 1;
+        updateCart();
+    }
+}
+
+function placeOrder() {
+    const address = document.getElementById('deliveryAddress').value.trim();
+    
+    if (!address) {
+        alert('Please enter a delivery address');
+        return;
+    }
+    
+    if (Object.keys(cart).length === 0) {
+        alert('Your cart is empty');
+        return;
+    }
+    
+    // Prepare cart data
+    const cartData = Object.keys(cart).map(itemId => ({
+        item_id: parseInt(itemId),
+        quantity: cart[itemId]
+    }));
+    
+    const orderData = {
+        cart: cartData,
+        address: address
+    };
+    
+    // Disable button during request
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    placeOrderBtn.disabled = true;
+    placeOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Placing Order...';
+    
+    // Send order request
+    fetch('{{ url_for("orders.place_order") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            // Clear cart
+            document.querySelectorAll('input[id^="quantity_"]').forEach(input => {
+                input.value = 0;
+            });
+            document.getElementById('deliveryAddress').value = '';
+            updateCart();
+            
+            // Show success modal
+            new bootstrap.Modal(document.getElementById('orderSuccessModal')).show();
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        document.getElementById('errorMessage').textContent = error.message;
+        new bootstrap.Modal(document.getElementById('orderErrorModal')).show();
+    })
+    .finally(() => {
+        // Re-enable button
+        placeOrderBtn.disabled = false;
+        placeOrderBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Place Order';
+    });
+}
+
+// Initialize cart on page load
+$(document).ready(function() {
+    updateCart();
+    
+    // Update cart when address changes
+    $('#deliveryAddress').on('input', updateCart);
+    
+    // Event delegation for quantity buttons
+    $(document).on('click', '.quantity-btn', function() {
+        const action = $(this).data('action');
+        const itemId = $(this).data('item-id');
+        
+        if (action === 'increase') {
+            increaseQuantity(itemId);
+        } else if (action === 'decrease') {
+            decreaseQuantity(itemId);
+        }
+    });
+    
+    // Event delegation for quantity input changes
+    $(document).on('change', '.quantity-input', function() {
+        updateCart();
+    });
+});
+</script>
+{% endblock %}
